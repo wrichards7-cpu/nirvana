@@ -1,0 +1,19 @@
+# This file will be written to the logging.yaml config file in the pod
+version: 1
+disable_existing_loggers: false
+formatters:
+  file_format:
+    format: "%(asctime)s - %(name)s - %(process)s - %(levelname)s - %(message)s"
+    datefmt: "%Y-%m-%d %H:%M:%S"
+handlers:
+  console:
+    class: logging.StreamHandler
+    level: INFO
+    formatter: file_format
+    stream: ext://sys.stdout
+loggers:
+  app:
+    level: INFO
+root:
+  level: INFO
+  handlers: [ console ]
