@@ -1,7 +1,9 @@
-from app.api.member import coalescing, SortType, SortDirection, SortBody, ColumnSortBody, PostAlgoBody, GetCurrentPolicyBody, Columns
+from app.api.coalesce import coalescing, SortType, SortDirection, SortBody, ColumnSortBody, PostAlgoBody, Columns
 
 
-#example of unit test testing coalescing function
+# single example of unit test testing coalescing function. focused
+# on the integration tests with the time I had. Obviously unit test 
+# coverage is not very high with this single test haha
 
 # def coalescing(input_list, coalesAlgo):
 
@@ -13,7 +15,7 @@ def testCoalescingFunction():
         [ 10000, 8000, 1000 ]
     ]
 
-
+    # could have just serialized from json to do all below. Just showing a different path.
     primary_sort_type = SortType.value
     secondary_sort_type = SortType.value
     third_sort_type = SortType.value

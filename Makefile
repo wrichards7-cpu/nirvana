@@ -7,6 +7,7 @@ run: dependencies
 
 tests: 
 	python3 integration_tests.py
+	python3 unit_tests.py
 
 dependencies:
 	pip install -r requirements.txt

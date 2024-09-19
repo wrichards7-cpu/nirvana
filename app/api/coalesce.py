@@ -1,22 +1,16 @@
 import logging
 import os
-from pydantic import BaseModel
-from sqlalchemy.orm import sessionmaker, Session
-from app.factory import SessionLocal
-from app.models.members import Members
-from app.factory import get_db
 import httpx
+import asyncio
+from pydantic import BaseModel
+from app.factory import SessionLocal
+from app.factory import get_db
 from enum import Enum
 from typing import Type, Optional, List
 from app.api.external_apis import PolicyResponse
-import asyncio
-import async_timeout
+from collections import Counter
 from urllib.error import HTTPError
-import time
-import json
-
-
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends,HTTPException
 
 logger = logging.getLogger(__name__)
 
@@ -79,13 +73,18 @@ columnToId = {
 
 @router.post("/coalesce", response_model=PolicyResponse)             ## hacky but i added a default list of URLs to hit for test bc of time limit i had
 async def getCurrentPolicy(request: RequestBody):
+    # validate body. This should go into a decorator or middleware
+    requestBodyValidation(request)
     returned_list = []
     async with httpx.AsyncClient() as client:
+        # build tasks
         tasks = [call_url(request.memberId, url, client) for url in request.urlList]
         # spin off all tasks in a asyn manner allowing for exceptions and timeouts ( timeouts will throw an exception ) to happen
         responses = await asyncio.gather(*tasks, return_exceptions=True)
         logger.info('Values returned in gather = ' + str(responses))
         returned_list = []
+        ## might be able to get rid of this forloop and do this processing in each task 
+        ## but would need to work with exceptions and the async.io gather API 
         for i in range(len(responses)):
             # filter out exceptions 
             if not isinstance(responses[i], Exception):
@@ -110,6 +109,9 @@ columnToId = {
 
 
 def coalescing(input_list, coalesAlgo):
+    # match on tuple from the request body and the sort direction. This is needed
+    # because sorted api only supports using - in the lambda definition and you cant 
+    # dynamically generate that operator without some real hacky code ( using exec library etc )
     match (coalesAlgo.primary.sort_body.sort_direction, coalesAlgo.secondary.sort_body.sort_direction, coalesAlgo.third.sort_body.sort_direction):
         case ('DESC', 'ASC', 'ASC'):
             return [x for x in sorted(input_list, key=lambda x:
@@ -160,4 +162,47 @@ def coalescing(input_list, coalesAlgo):
                         -x[columnToId[coalesAlgo.secondary.column]], 
                             x[columnToId[coalesAlgo.third.column]])
                     )][0]
+# function that validates a request body. This should probably be moved to middleware
+# where we can annotate the function that accepts a RequestBody. Ran out of time to do this.
+def requestBodyValidation(requestBody: RequestBody):
+    ## for this validation we just going to check that each column is only 
+    ## specified once. more validation to inputs should happen
 
+    if len(requestBody.urlList) == 0:
+            logger.error("Request Body failed")
+            raise HTTPException(status_code=500, detail="Invalid payload passed")
+
+
+    counter = Counter()
+    counter['oop_max'] = 0
+    counter['remaining_oop_max'] = 0
+    counter['copay'] = 0
+
+    match requestBody.postAlgoBody.primary.column:
+        case Columns.oop_max:
+            counter['oop_max'] += 1
+        case Columns.remaining_oop_max:
+            counter['remaining_oop_max'] += 1
+        case Columns.copay:
+            counter['copay'] += 1
+    match requestBody.postAlgoBody.secondary.column:
+        case Columns.oop_max:
+            counter['oop_max'] += 1
+        case Columns.remaining_oop_max:
+            counter['remaining_oop_max'] += 1
+        case Columns.copay:
+            counter['copay'] += 1
+    match requestBody.postAlgoBody.third.column:
+        case Columns.oop_max:
+            counter['oop_max'] += 1
+        case Columns.remaining_oop_max:
+            counter['remaining_oop_max'] += 1
+        case Columns.copay:
+            counter['copay'] += 1
+
+    for key, value in counter.items():
+        if value != 1:
+            logger.error("Request Body failed")
+            raise HTTPException(status_code=500, detail="Invalid payload passed")
+
+    

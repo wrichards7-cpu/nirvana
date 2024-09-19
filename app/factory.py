@@ -23,6 +23,7 @@ Base = sqlalchemy.orm.declarative_base()
 
 Base.metadata.create_all(bind=engine)
 
+# provide function for getting a DB session
 def get_db():
     db = SessionLocal()
     try:
@@ -32,17 +33,18 @@ def get_db():
 
 def create_app(config: Settings):
     app = FastAPI(
-        title="Nirvana coalase",
+        title="Nirvana coalasce",
         description="",
         version=__version__,
         openapi_url=None
     )
-
+    # remove sqllite db file on shutdown
     @app.on_event("shutdown")
     def release_lock():
         os.remove('./test.db')
     origins = ["*"]
 
+    # on startup preload the DB with data
     from app.models.external import Api1, Api2, Api3
     @app.on_event("startup")
     def release_lock():
@@ -67,6 +69,7 @@ def create_app(config: Settings):
     from app.api import external_apis
     from app.api import coalesce
 
+    # add api endpoints to webserver
     app.include_router(external_apis.router)
     app.include_router(coalesce.router)
 
@@ -80,17 +83,17 @@ def create_app(config: Settings):
 
     Base.metadata.create_all(bind=engine)
 
-    # All uncaught errors
-    @app.exception_handler(Exception)
-    async def error_response_handler(request: Request, exc: Exception):
-        logger.error(exc)
-        content = dict(code=500, message="Internal Server Error",
-                       traceId=request.state.trace_id)
-        logger.info(content)
-        return JSONResponse(
-            status_code=500,
-            content=content
-        )
+    # # All uncaught errors
+    # @app.exception_handler(Exception)
+    # async def error_response_handler(request: Request, exc: Exception):
+    #     logger.error(exc)
+    #     content = dict(code=500, message="Internal Server Error",
+    #                    traceId=request.state.trace_id)
+    #     logger.info(content)
+    #     return JSONResponse(
+    #         status_code=500,
+    #         content=content
+    #     )
 
     return app
 
